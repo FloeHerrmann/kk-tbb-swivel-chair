@@ -19,29 +19,29 @@ Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0( 1000 );
 
 #define THRESHOLD_LEFT -1050
 #define THRESHOLD_RIGHT -500
-#define THRESHOLD_FRONT -1100
-#define THRESHOLD_BACK 150
+#define THRESHOLD_FRONT -900
+#define THRESHOLD_BACK 0
 
 int averageX, averageY, averageZ;
 
 bool MidPosition = true;
 bool MidPositionTimerRunning = false;
 long MidPositionTimer = 0;
-const long MidPositionTimerThreshold = 30000;
+const long MidPositionTimerThreshold = 10000;
 
 bool OutOfPosition = false;
 bool OutOfPositionTimerRunning = false;
 long OutOfPositionTimer = 0;
 long OutOfPositionTime = 0;
-const long OutOfPositionTimerThreshold = 60000;
-const long OutOfPositionRepeatTimerThreshold = 20000;
+const long OutOfPositionTimerThreshold = 20000;
+const long OutOfPositionRepeatTimerThreshold = 10000;
 
 bool Alert = false;
 
 void setup(void)  {
 
 	#ifdef SERIAL_OUTPUT
-		Serial.begin( 9600 );
+		Serial.begin( 115200 );
 	#endif
 
 	bool isDetected = lsm.begin();
@@ -108,11 +108,14 @@ void loop(void) {
 				MidPositionTimerRunning = true;
 				MidPositionTimer = millis();
 			} else {
-				if( ( millis() - MidPositionTimer ) > OutOfPositionTimerThreshold ) {
+				Serial.print( " > Time In Mid Position > " ); Serial.print( ( millis() - MidPositionTimer ) );
+				if( ( millis() - MidPositionTimer ) > MidPositionTimerThreshold ) {
 					#ifdef SERIAL_OUTPUT
-						Serial.println( "In Position For At Least 30000 Seconds > SUPER " );
+						Serial.print( " > Long Enough In Mid Position > SUPER > Reset Alert" );
 					#endif
 					Alert = false;
+					OutOfPositionTime = 0;
+					//OutOfPositionTimerRunning = false;
 				}
 			}
 		}
@@ -125,28 +128,28 @@ void loop(void) {
 			OutOfPositionTimerRunning = true;
 			OutOfPositionTimer = millis();
 		} else {
+			#ifdef SERIAL_OUTPUT		
+				Serial.print( " > Out Of Position Time > " );
+				Serial.print( OutOfPositionTime );	
+			#endif
 			if( Alert == false ) {
-				OutOfPositionTime = millis() - OutOfPositionTimer;
+				OutOfPositionTime += ( millis() - OutOfPositionTimer );
 				OutOfPositionTimer = millis();
 				if( OutOfPositionTime > OutOfPositionTimerThreshold ) {
 					// Alarm auslösen
 					#ifdef SERIAL_OUTPUT
-						Serial.print( "Out Of Position Time > " );
-						Serial.print( OutOfPositionTime );
-						Serial.println( " > WARNING " );
+						Serial.print( " > WARNING " );
 					#endif
 					Alert = true;
 					OutOfPositionTime = 0;
 				}
 			} else {
-				OutOfPositionTime = millis() - OutOfPositionTimer;
+				OutOfPositionTime += ( millis() - OutOfPositionTimer );
 				OutOfPositionTimer = millis();
 				if( OutOfPositionTime > OutOfPositionRepeatTimerThreshold ) {
 					// Alarm auslösen
 					#ifdef SERIAL_OUTPUT
-						Serial.print( "Out Of Position Time > " );
-						Serial.print( OutOfPositionTime );
-						Serial.println( " > WARNING " );
+						Serial.print( " > WARNING (AGAIN) " );
 					#endif
 					OutOfPositionTime = 0;
 				}
@@ -155,15 +158,10 @@ void loop(void) {
 	} else {
 		if( OutOfPositionTimerRunning == true ) {
 			OutOfPositionTimerRunning = false;
-			OutOfPositionTime = millis() - OutOfPositionTimer;
+			OutOfPositionTime += (millis() - OutOfPositionTimer);
 			OutOfPositionTimer = millis();
 		}
 	}
-
-	#ifdef SERIAL_OUTPUT
-		Serial.print( "Position Out Of Time > " );
-		Serial.print( OutOfPositionTime );
-	#endif
 
 	#ifdef SERIAL_OUTPUT
 		Serial.println();
@@ -196,10 +194,10 @@ void SensorAverage(){
 	averageY = totalY / 5;
 	averageZ = totalZ / 5;
 
-	#ifdef SERIAL_OUTPUT
-		Serial.print( "Average > " );
-		Serial.print( averageX ); Serial.print( " / " );
-		Serial.print( averageY ); Serial.print( " / " );
-		Serial.println( averageZ );
-	#endif
+	// #ifdef SERIAL_OUTPUT
+	// 	Serial.print( "Average > " );
+	// 	Serial.print( averageX ); Serial.print( " / " );
+	// 	Serial.print( averageY ); Serial.print( " / " );
+	// 	Serial.println( averageZ );
+	// #endif
 }
