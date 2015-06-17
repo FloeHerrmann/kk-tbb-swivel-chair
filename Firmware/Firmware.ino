@@ -4,6 +4,7 @@
 #include <Adafruit_LSM9DS0.h>
 
 #define SERIAL_OUTPUT
+#define DEBUG_OUTPUT
 
 // 1000 = Sensor ID
 Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0( 1000 );
@@ -27,16 +28,21 @@ int averageX, averageY, averageZ;
 bool MidPosition = true;
 bool MidPositionTimerRunning = false;
 long MidPositionTimer = 0;
-const long MidPositionTimerThreshold = 10000;
+const long MidPositionTimerThreshold = 15000;
 
 bool OutOfPosition = false;
 bool OutOfPositionTimerRunning = false;
 long OutOfPositionTimer = 0;
 long OutOfPositionTime = 0;
-const long OutOfPositionTimerThreshold = 20000;
-const long OutOfPositionRepeatTimerThreshold = 10000;
+const long OutOfPositionTimerThreshold = 30000;
+const long OutOfPositionRepeatTimerThreshold = 15000;
 
 bool Alert = false;
+
+bool ChairIsTaken = false;
+bool ChairIsTakenTimerRunning = false;
+long ChairIsTakenTimer = 0;
+const long ChairIsTakenTimerThreshold = 60000;
 
 void setup(void)  {
 
@@ -56,6 +62,8 @@ void setup(void)  {
 	#endif
 
 	SensorConfigure();
+
+	delay( 2000 );
 }
 
 void loop(void) {
@@ -67,37 +75,37 @@ void loop(void) {
 	OutOfPosition = false;
 
 	if( averageX <= THRESHOLD_LEFT ) {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " LEFT " );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
 	} else if( averageX >= THRESHOLD_RIGHT ) {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " RIGHT" );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
 	} else {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " MID " );
 		#endif
 	}
 
 	if( averageZ <= THRESHOLD_FRONT ) {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " FRONT " );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
 	} else if( averageZ >= THRESHOLD_BACK ) {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " BACK" );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
 	} else {
-		#ifdef SERIAL_OUTPUT
+		#ifdef DEBUG_OUTPUT
 			Serial.print( " MID " );
 		#endif
 	}
@@ -119,11 +127,38 @@ void loop(void) {
 				}
 			}
 		}
+		if( ChairIsTaken == true ) {
+			if( ChairIsTakenTimerRunning = false ) {
+				ChairIsTakenTimerRunning = true;
+				ChairIsTakenTimer = millis();
+			} else {
+				Serial.print( " > Chair Is Taken > " ); Serial.print( ( millis() - ChairIsTakenTimer ) );
+				if( ( millis() - ChairIsTakenTimer ) > ChairIsTakenTimerThreshold ) {
+					#ifdef SERIAL_OUTPUT
+						Serial.print( " > No One Sitting On The Swivel Chair!" );
+					#endif
+					ChairIsTaken = false;
+					ChairIsTakenTimer = millis();
+					ChairIsTakenTimerRunning = false;
+				}
+			}
+		}
 	} else {
 		MidPositionTimerRunning = false;
 	}
 
 	if( OutOfPosition == true ) {
+
+		if( ChairIsTaken == false ) {
+			#ifdef SERIAL_OUTPUT
+				Serial.print( " > WELCOME ON THE SWIVEL CHAIR" );
+			#endif
+			ChairIsTaken = true;
+		} else {
+			ChairIsTakenTimer = millis();
+			ChairIsTakenTimerRunning = false;
+		}
+
 		if( OutOfPositionTimerRunning == false ) {
 			OutOfPositionTimerRunning = true;
 			OutOfPositionTimer = millis();
@@ -194,10 +229,9 @@ void SensorAverage(){
 	averageY = totalY / 5;
 	averageZ = totalZ / 5;
 
-	// #ifdef SERIAL_OUTPUT
-	// 	Serial.print( "Average > " );
-	// 	Serial.print( averageX ); Serial.print( " / " );
-	// 	Serial.print( averageY ); Serial.print( " / " );
-	// 	Serial.println( averageZ );
-	// #endif
+	#ifdef DEBUG_OUTPUT
+		Serial.print( averageX ); Serial.print( " / " );
+		Serial.print( averageY ); Serial.print( " / " );
+		Serial.print( averageZ ); Serial.print( " / " );
+	#endif
 }
