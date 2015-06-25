@@ -18,10 +18,19 @@ Adafruit_LSM9DS0 lsm = Adafruit_LSM9DS0( 1000 );
 #define LSM9DS0_MISO 12
 #define LSM9DS0_MOSI 11
 
-#define THRESHOLD_LEFT -1050
-#define THRESHOLD_RIGHT -500
-#define THRESHOLD_FRONT -900
-#define THRESHOLD_BACK 0
+#define THRESHOLD_LEFT -757
+#define THRESHOLD_RIGHT -289
+#define THRESHOLD_FRONT -80
+#define THRESHOLD_BACK -1019
+
+#define AVERAGE_VALUES 100
+
+/*
+#define THRESHOLD_LEFT -900
+#define THRESHOLD_RIGHT -250
+#define THRESHOLD_FRONT -150
+#define THRESHOLD_BACK -1200
+*/
 
 int averageX, averageY, averageZ;
 
@@ -61,6 +70,18 @@ void setup(void)  {
 		}
 	#endif
 
+	pinMode( 3 , OUTPUT );
+	pinMode( 4 , OUTPUT );
+	pinMode( 5 , OUTPUT );
+	pinMode( 6 , OUTPUT );
+	pinMode( 8 , OUTPUT );
+
+	digitalWrite( 3 , HIGH );
+	digitalWrite( 4 , HIGH );
+	digitalWrite( 5 , HIGH );
+	digitalWrite( 6 , HIGH );
+	digitalWrite( 8 , HIGH );
+
 	SensorConfigure();
 
 	delay( 2000 );
@@ -74,13 +95,13 @@ void loop(void) {
 	MidPosition = true;
 	OutOfPosition = false;
 
-	if( averageX <= THRESHOLD_LEFT ) {
+	if( averageZ <= THRESHOLD_LEFT ) {
 		#ifdef DEBUG_OUTPUT
 			Serial.print( " LEFT " );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
-	} else if( averageX >= THRESHOLD_RIGHT ) {
+	} else if( averageZ >= THRESHOLD_RIGHT ) {
 		#ifdef DEBUG_OUTPUT
 			Serial.print( " RIGHT" );
 		#endif
@@ -92,13 +113,13 @@ void loop(void) {
 		#endif
 	}
 
-	if( averageZ <= THRESHOLD_FRONT ) {
+	if( averageX >= THRESHOLD_FRONT ) {
 		#ifdef DEBUG_OUTPUT
 			Serial.print( " FRONT " );
 		#endif
 		MidPosition = false;
 		OutOfPosition = true;
-	} else if( averageZ >= THRESHOLD_BACK ) {
+	} else if( averageX <= THRESHOLD_BACK ) {
 		#ifdef DEBUG_OUTPUT
 			Serial.print( " BACK" );
 		#endif
@@ -133,10 +154,21 @@ void loop(void) {
 				ChairIsTakenTimer = millis();
 			} else {
 				Serial.print( " > Chair Is Taken > " ); Serial.print( ( millis() - ChairIsTakenTimer ) );
+				
+				if( ( millis() - ChairIsTakenTimer ) > MidPositionTimerThreshold ) {
+					#ifdef SERIAL_OUTPUT
+						Serial.print( " > Reset Out Of Position Time" );
+					#endif
+					Alert = false;
+					OutOfPositionTime = 0;
+					//OutOfPositionTimerRunning = false;
+				}
 				if( ( millis() - ChairIsTakenTimer ) > ChairIsTakenTimerThreshold ) {
 					#ifdef SERIAL_OUTPUT
 						Serial.print( " > No One Sitting On The Swivel Chair!" );
 					#endif
+					digitalWrite( 6 , LOW ); delay( 250 );
+					digitalWrite( 6 , HIGH );
 					ChairIsTaken = false;
 					ChairIsTakenTimer = millis();
 					ChairIsTakenTimerRunning = false;
@@ -153,6 +185,8 @@ void loop(void) {
 			#ifdef SERIAL_OUTPUT
 				Serial.print( " > WELCOME ON THE SWIVEL CHAIR" );
 			#endif
+			digitalWrite( 3 , LOW ); delay( 250 );
+			digitalWrite( 3 , HIGH );
 			ChairIsTaken = true;
 		} else {
 			ChairIsTakenTimer = millis();
@@ -177,6 +211,8 @@ void loop(void) {
 					#endif
 					Alert = true;
 					OutOfPositionTime = 0;
+					digitalWrite( 4, LOW ); delay( 250 );
+					digitalWrite( 4, HIGH );
 				}
 			} else {
 				OutOfPositionTime += ( millis() - OutOfPositionTimer );
@@ -187,6 +223,8 @@ void loop(void) {
 						Serial.print( " > WARNING (AGAIN) " );
 					#endif
 					OutOfPositionTime = 0;
+					digitalWrite( 5 , LOW ); delay( 250 );
+					digitalWrite( 5 , HIGH );
 				}
 			}
 		}
@@ -201,6 +239,7 @@ void loop(void) {
 	#ifdef SERIAL_OUTPUT
 		Serial.println();
 	#endif
+
 }
 
 // Configure the sensor
@@ -217,21 +256,21 @@ void SensorAverage(){
 	long totalY = 0;
 	long totalZ = 0;
 
-	for( int i = 0 ; i < 5 ; i++ ) {
+	for( int i = 0 ; i < AVERAGE_VALUES ; i++ ) {
 		lsm.read();
 		totalX += (int)lsm.accelData.x;
 		totalY += (int)lsm.accelData.y;
 		totalZ += (int)lsm.accelData.z;
-		delay( 50 );
+		//delay( ( 500 / AVERAGE_VALUES ) );
 	}
 
-	averageX = totalX / 5;
-	averageY = totalY / 5;
-	averageZ = totalZ / 5;
+	averageX = totalX / AVERAGE_VALUES;
+	averageY = totalY / AVERAGE_VALUES;
+	averageZ = totalZ / AVERAGE_VALUES;
 
 	#ifdef DEBUG_OUTPUT
-		Serial.print( averageX ); Serial.print( " / " );
-		Serial.print( averageY ); Serial.print( " / " );
-		Serial.print( averageZ ); Serial.print( " / " );
+		Serial.print( "X: " ); Serial.print( averageX ); Serial.print( " / " );
+		Serial.print( "Y: " ); Serial.print( averageY ); Serial.print( " / " );
+		Serial.print( "Z: " ); Serial.print( averageZ ); Serial.print( " / " );
 	#endif
 }
